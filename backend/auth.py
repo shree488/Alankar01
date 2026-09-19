@@ -11,8 +11,9 @@ from database import db
 from models import Owner, Session, LoginAttempt, now
 
 router = APIRouter(prefix='/api/auth')
-TRUSTED_ORIGINS = {value.strip().rstrip('/') for value in os.environ['CSRF_TRUSTED_ORIGINS'].split(',')}
-SECRET = os.environ['JWT_SECRET']
+raw_trusted = os.environ.get('CSRF_TRUSTED_ORIGINS', os.environ.get('CORS_ORIGINS', os.environ.get('FRONTEND_URL', 'http://localhost:3000')))
+TRUSTED_ORIGINS = {value.strip().rstrip('/') for value in raw_trusted.split(',') if value.strip()}
+SECRET = os.environ.get('JWT_SECRET', 'fallback_jwt_secret_dev_12345')
 
 async def csrf_guard(request: Request):
     if request.method not in ('GET', 'HEAD', 'OPTIONS'):
@@ -32,7 +33,7 @@ async def seed_owner():
     await db.sessions.create_index('expires_at', expireAfterSeconds=0)
     await db.login_attempts.create_index('identifier', unique=True)
     await db.login_attempts.create_index('expires_at', expireAfterSeconds=0)
-    password = os.environ['ADMIN_PASSWORD'].encode()
+    password = os.environ.get('ADMIN_PASSWORD', 'admin@alankar').encode()
     existing = await db.users.find_one({'role': 'owner'})
     if not existing or not bcrypt.checkpw(password, existing['password_hash'].encode()):
         hashed = await run_in_threadpool(bcrypt.hashpw, password, bcrypt.gensalt())

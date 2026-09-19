@@ -15,7 +15,7 @@ from catalog import object_id
 from models import Upload, Media, now
 
 router = APIRouter(prefix='/api')
-STORAGE_URL = os.environ['INTEGRATION_PROXY_URL'].rstrip('/') + '/objstore/api/v1/storage'
+STORAGE_URL = os.environ.get('INTEGRATION_PROXY_URL', 'https://integrations.emergentagent.com').rstrip('/') + '/objstore/api/v1/storage'
 storage_key = None
 CHUNK_SIZE = 512 * 1024
 MAX_SIZE = 8 * 1024 * 1024
@@ -26,7 +26,7 @@ def init_storage(force=False):
     global storage_key
     if storage_key and not force:
         return storage_key
-    response = requests.post(f'{STORAGE_URL}/init', json={'emergent_key': os.environ['EMERGENT_LLM_KEY']}, timeout=30)
+    response = requests.post(f'{STORAGE_URL}/init', json={'emergent_key': os.environ.get('EMERGENT_LLM_KEY', 'placeholder')}, timeout=30)
     response.raise_for_status()
     storage_key = response.json()['storage_key']
     return storage_key
@@ -102,7 +102,7 @@ async def complete_upload(upload_id: str, session=Depends(require_owner)):
         raise HTTPException(422, 'Upload is incomplete.')
     data = b''.join(upload.chunks)
     ext, content_type = await run_in_threadpool(validate_image, data)
-    path = f"{os.environ['STORAGE_APP_NAME']}/uploads/{session.owner_id}/{uuid.uuid4()}.{ext}"
+    path = f"{os.environ.get('STORAGE_APP_NAME', 'new-alankar-jewellers')}/uploads/{session.owner_id}/{uuid.uuid4()}.{ext}"
     try:
         result = await run_in_threadpool(storage_request, 'PUT', path, data, content_type)
         result = result.json()
