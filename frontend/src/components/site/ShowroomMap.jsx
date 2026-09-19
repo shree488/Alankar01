@@ -9,10 +9,20 @@ export const ShowroomMap = () => <section className="showroom-section" data-test
     <address data-testid="showroom-address"><MapPin size={20} strokeWidth={1.4} /><span>कासार गल्ली, सोमवार पेठ,<br />तासगाव, महाराष्ट्र ४१६३१२</span></address>
     <p className="showroom-visit-note" data-testid="showroom-visit-note">भेट देण्यापूर्वी फोन करून वेळ निश्चित करा.</p>
     <a className="showroom-phone" data-testid="showroom-phone-link" href="tel:+919890271037"><Phone size={16} strokeWidth={1.5} /> {PHONE_DISPLAY}</a>
-    <a className="lux-button showroom-directions" data-testid="showroom-directions-link" href={process.env.REACT_APP_SHOWROOM_DIRECTIONS_URL} target="_blank" rel="noopener noreferrer"><Navigation size={16} /> येण्याचा मार्ग पाहा</a>
-    <a className="text-button showroom-google-link" data-testid="showroom-google-link" href={process.env.REACT_APP_SHOWROOM_MAP_URL} target="_blank" rel="noopener noreferrer">Google Maps वर पाहा <ArrowUpRight size={15} /></a>
+    <a className="lux-button showroom-directions" data-testid="showroom-directions-link" href="https://www.google.com/maps/dir/?api=1&destination=New+Alankar+Jewellers+Kasar+Galli+Somwar+Peth+Tasgaon+Maharashtra+416312" target="_blank" rel="noopener noreferrer"><Navigation size={16} /> येण्याचा मार्ग पाहा</a>
+    <a className="text-button showroom-google-link" data-testid="showroom-google-link" href="https://www.google.com/maps/dir/?api=1&destination=New+Alankar+Jewellers+Kasar+Galli+Somwar+Peth+Tasgaon+Maharashtra+416312" target="_blank" rel="noopener noreferrer">Google Maps वर पाहा <ArrowUpRight size={15} /></a>
   </div>
   <div className="showroom-map-frame" data-lenis-prevent>
-    <iframe data-testid="showroom-map-iframe" title="न्यू अलंकार ज्वेलर्स, तासगाव — Google Maps नकाशा" src={process.env.REACT_APP_SHOWROOM_MAP_EMBED_URL} width="100%" height="380" loading="lazy" referrerPolicy="no-referrer-when-downgrade" allowFullScreen />
+    <iframe
+      data-testid="showroom-map-iframe"
+      title="New Alankar Jewellers Showroom Location"
+      src="https://maps.google.com/maps?q=New+Alankar+Jewellers+Kasar+Galli+Somwar+Peth+Tasgaon+Maharashtra+416312&t=&z=16&ie=UTF8&iwloc=&output=embed"
+      width="100%"
+      height="100%"
+      style={{ minHeight: '420px', border: 0, borderRadius: '1rem' }}
+      allowFullScreen=""
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+    />
   </div>
 </section>;
