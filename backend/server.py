@@ -18,10 +18,13 @@ async def lifespan(app):
     await db.uploads.create_index('expires_at', expireAfterSeconds=0)
     await db.vip_bookings.update_many({'status': 'requested'}, {'$set': {'status': 'Pending'}})
     try:
-        await run_in_threadpool(init_storage)
-        logging.info('Object storage ready')
-    except Exception:
-        logging.exception('Object storage initialization failed; uploads will retry initialization')
+        res = await run_in_threadpool(init_storage)
+        if res:
+            logging.info('Object storage ready')
+        else:
+            logging.info('Object storage skipped (not configured)')
+    except Exception as e:
+        logging.info(f'Object storage initialization skipped: {e}')
     yield
     client.close()
 
