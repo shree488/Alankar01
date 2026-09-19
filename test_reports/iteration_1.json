@@ -1,0 +1,45 @@
+{
+  "summary": "Backend: 34/34 pytest tests passed (1 skipped: origin forgery not possible from outside ingress) covering health, /api/rates removal, owner auth (login/csrf/wrong-password/refresh/logout/session-revocation), admin protection, product CRUD + validation, chunked file uploads (>512KB multi-chunk PNG success, invalid MIME/oversize/negative index/incomplete/disguised-non-image), public catalog shape, booking creation & validation, admin booking list + status patch, and QA cleanup. Frontend: public Marathi storefront renders correct brand, tagline (पवित्रतेचे प्रतीक), trust line, empty state (लवकरच नवीन दागिने उपलब्ध होतील) and the English VIP Appointment booking flow works end-to-end from the browser (201 with NAJ-* reference + WhatsApp CTA). CRITICAL FINDING: owner admin login is BROKEN in the browser because the preview ingress (Cloudflare worker) rewrites the Origin header from `https://precious-purity-1.preview.emergentagent.com` to the internal cluster host `https://precious-purity-1.cluster-2.preview.emergentcf.cloud` before it reaches FastAPI. The CSRF guard in backend/auth.py compares Origin to FRONTEND_URL and rejects with 403 'Untrusted origin.' All admin login/logout/refresh/mutation calls initiated from the deployed frontend fail. This blocks ALL admin UI verification (product CRUD, image upload UI, booking status changes) despite the underlying APIs functioning correctly when Origin is omitted (as pytest exercises them).",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "/api/auth/login (and every mutation guarded by csrf_guard)", "issue": "csrf_guard in backend/auth.py rejects browser requests because the ingress rewrites Origin to https://precious-purity-1.cluster-2.preview.emergentcf.cloud, which does not match FRONTEND_URL. Reproduced in Playwright: POST /api/auth/login returns 403 {\"detail\":\"Untrusted origin.\"} and the lock screen shows 'Untrusted origin.' after entering the correct master password. Admin portal is completely unusable in the preview environment.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "AdminPage lock screen", "issue": "Because backend returns 403 for every login attempt, the lock screen is impossible to unlock; users see 'Untrusted origin.' error on submit.", "selector": "[data-testid=\"admin-login-btn\"]", "priority": "CRITICAL"}
+    ],
+    "integration_issues": [
+      {"flow": "Owner admin login → dashboard", "issue": "Frontend correctly sends X-CSRF-Protection header, but the ingress-rewritten Origin causes backend to 403. Frontend has no browser-side fix — server-side change required.", "affected_selectors": ["[data-testid=\"admin-password-input\"]","[data-testid=\"admin-login-btn\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "URGENT: Fix backend/auth.py csrf_guard Origin check so it accepts requests routed through the preview ingress. Recommended approaches (pick one): (a) trust X-Forwarded-Host header and compare hostnames of Origin OR X-Forwarded-Host against a whitelist that includes the preview cluster host; (b) accept an ALLOWED_ORIGINS env list rather than a single FRONTEND_URL, or (c) drop the Origin check and rely solely on the required X-CSRF-Protection custom header (which is sufficient for CSRF because non-simple headers require CORS preflight, and CORS is already whitelisted to FRONTEND_URL). Note: CORSMiddleware also uses only FRONTEND_URL, but browsers see this preview URL first, so CORS still works — only the manual Origin equality inside csrf_guard is the problem.",
+    "After the fix, re-run /app/backend/tests/backend_test.py with an explicit Origin header re-enabled and validate full admin UI (product CRUD, chunked image upload UI, booking status patch) via Playwright."
+  ],
+  "critical_code_review_comments": [
+    "backend/auth.py csrf_guard: single-value equality on Origin is fragile behind any ingress that rewrites host headers. Prefer allowlist + X-Forwarded-Host support.",
+    "backend/auth.py login(): request.client.host is the ingress IP, so brute-force lockouts effectively lock the whole preview edge — deliberately not tested. Consider deriving identifier from the leftmost trustworthy value in X-Forwarded-For (behind a trusted proxy allowlist) or accepting that lockouts are global.",
+    "backend/storage.py upload_chunk(): idempotent replay path returns HTTP 200 with a stale `received` value (upload.received prior to the write). Not a bug per se but confusing; consider returning the current authoritative value.",
+    "backend/models.py Upload stores full chunk bytes in Mongo; a single 8 MB image bloats a document to ~8 MB before it is deleted on complete. TTL protects worst-case but consider GridFS or streaming to object storage directly.",
+    "backend/catalog.py public_products and admin_products serialize created_at/updated_at as ISO datetimes via Pydantic model_dump — verified fine but not covered by an assertion; add if UI relies on ISO strings."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (new)",
+    "/app/test_reports/iteration_1.json (new)",
+    "/app/test_reports/pytest/pytest_results.xml (new)"
+  ],
+  "success_rate": {"backend": "100% (34/34, 1 skipped due to environment)", "frontend": "Public storefront + booking: 100%. Admin: blocked, 0% because of backend CSRF Origin bug."},
+  "test_credentials": "Master password from /app/memory/test_credentials.md: admin@alankar (unchanged).",
+  "seed_data_creation": "Tests create+delete QA products, media docs and NAJ-* bookings prefixed TEST_QA_. All cleaned up in test_zzz_cleanup + a manual sweep. Verified /api/products is empty and pre-existing 2 vip_bookings preserved.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend regression suite lives at /app/backend/tests/backend_test.py — invoke with `pytest -n 0` (pytest.ini pins xdist=2 with loadscope; -n 0 forces serial for shared login-attempts state). CSRF Origin bug is the single blocker; once the main agent patches csrf_guard, re-enable the untrusted-origin assertion (currently skipped) and drive the full admin UI flow through Playwright: /admin unlock → product create with URL image → product create with a >512KB uploaded file (use the same PNG generator from big_png_bytes fixture) → deactivate/reactivate/delete → booking status Pending↔Confirmed → verify Call/WhatsApp hrefs use +91<customer-phone>. Pre-existing bookings to preserve: db.vip_bookings currently has 2 legacy NAJ-* rows.",
+  "rca of the issue": "Preview ingress (Cloudflare worker `envcore-preview-worker-prod`) proxies external `precious-purity-1.preview.emergentagent.com` traffic to internal cluster origin `precious-purity-1.cluster-2.preview.emergentcf.cloud` and rewrites the browser-supplied Origin header to that internal host (confirmed via a temporary /api/__debug_headers echo). backend/auth.py csrf_guard does `if origin and origin != FRONTEND_ORIGIN: raise 403`. Since FRONTEND_URL in backend/.env is the external URL, every real browser mutation with an Origin header is rejected. Mitigation: broaden the allowed-origin check to a set (external + internal cluster host) or, preferably, trust the CSRF custom header alone plus CORS enforcement (CORSMiddleware already restricts allowed origins via preflight)."
+}

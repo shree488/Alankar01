@@ -1,0 +1,28 @@
+{
+  "summary": "ITERATION 1 BLOCKER RESOLVED. Real browser owner login through preview ingress now succeeds. Full end-to-end re-test executed: 39 backend pytest tests pass (34 original + 5 new security/lockout, 1 skipped by design), plus complete admin browser flows (create via URL, real multi-chunk upload of 2.4MB PNG, preview, edit, active/deactivate/reactivate, delete cancel+confirm, logout+revocation, forged sessionStorage cannot bypass lock, booking status Pending↔Confirmed persisted across reload with legacy 2 bookings preserved, Call/WhatsApp hrefs use +91 correctly). Visual requirements verified: navbar tagline 'Symbol of Purity' in gold rgb(152,114,36)/#987224 Jost font, footer copyright ends 'All rights reserved.', public hero/footer stays Marathi. Mobile 390px has zero horizontal overflow across public store, admin lock, admin dashboard, admin bookings table. Brute-force lockout (5 wrong attempts → 429 for 15min) verified via loopback in test_security_extra.py (identifier auto-cleaned). Untrusted Origin AND untrusted Referer both server-side rejected via direct 127.0.0.1:8001 tests (bypasses ingress rewrite). Trusted-origin-with-missing-Referer path succeeds (matches real browser). Final DB state clean: 0 products, 0 media, 0 uploads meta, 0 login_attempts, only 2 legacy bookings preserved (NAJ-HIIE9T, NAJ-5PSONR).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/test_security_extra.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "auth.py login() still uses request.client.host as brute-force identifier; behind the preview ingress this collapses to the shared edge IP so a real attacker could lock out the whole edge. Consider deriving from X-Forwarded-For leftmost after trusted-proxy allowlist. Not blocking for QA.",
+    "storage.upload_chunk() idempotent replay returns pre-write `received` value — cosmetic, unchanged from iter1.",
+    "models.Upload stores full chunk bytes in Mongo — 8MB image inflates docs before delete-on-complete; TTL protects worst case, but GridFS/object storage would be cleaner."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_security_extra.py (new — untrusted Origin/Referer + brute-force lockout via loopback)",
+    "/app/test_reports/iteration_2.json (new)",
+    "/app/test_reports/pytest/pytest_results.xml (regenerated)"
+  ],
+  "success_rate": {"backend": "100% (39/39, 1 skipped by design due to ingress limitation)", "frontend": "100% — every previously blocked admin flow, mobile view, and visual requirement verified"},
+  "test_credentials": "Master password admin@alankar (unchanged, /app/memory/test_credentials.md).",
+  "seed_data_creation": "Temporarily created 2 TEST_QA_UI products (URL + upload), 1 media doc (2.4MB PNG), 1 TEST_QA_ booking (NAJ-*). All deleted via UI/Mongo. Also cleared residual QA sessions (14) so admin will start with a fresh session on next login; 2 legacy bookings preserved.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Regression suites: /app/backend/tests/backend_test.py (external via REACT_APP_BACKEND_URL, 34 tests) and /app/backend/tests/test_security_extra.py (localhost:8001 loopback for Origin/Referer forgery + brute-force lockout — 5 tests). Run serial: `pytest -n 0 backend/tests/`. Cleanup fixtures already prune login_attempts, media, uploads, TEST_QA_ products and NAJ bookings created during the run. Iteration1 CSRF Origin blocker was fixed via CSRF_TRUSTED_ORIGINS allowlist in backend/.env + auth.py csrf_guard; both trusted preview URLs are now honored. Legacy bookings to preserve: NAJ-HIIE9T, NAJ-5PSONR.",
+  "rca of the issue": "Iteration1 blocker resolved: backend/.env now sets CSRF_TRUSTED_ORIGINS to a comma-separated list containing both the external preview URL and the internal cluster host to which the Cloudflare worker rewrites Origin. auth.py::csrf_guard checks membership in that set for both Origin and Referer (parsed via urlsplit) while still requiring the X-CSRF-Protection: 1 custom header. Verified end-to-end through the browser (login/refresh/logout all 200) and via direct loopback tests that malicious Origin/Referer are still rejected 403."
+}

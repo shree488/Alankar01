@@ -1,0 +1,75 @@
+{
+  "project_title": "New Alankar Jewellers - Luxury Storefront Blueprint",
+  "app_type": "luxury_storefront_hybrid_fullstack",
+  "archetype": "LUXURY_HERITAGE_INDIAN",
+  "theme": {
+    "mode": "light",
+    "primary_palette": {
+      "pearl_white": "#fcfaf7",
+      "royal_purple": "#3b1254",
+      "royal_purple_hover": "#4a154b",
+      "metallic_gold": "#c5a880",
+      "deep_gold": "#b59047",
+      "text_muted": "#685d70",
+      "border_line": "#e8e2ea"
+    }
+  },
+  "typography": {
+    "font_families": {
+      "marathi_heading": "'Noto Serif Devanagari', serif",
+      "marathi_body": "'Noto Sans Devanagari', sans-serif",
+      "english_brand": "'Cinzel', serif",
+      "english_body": "'Jost', sans-serif",
+      "modal_title": "'Cormorant Garamond', serif"
+    },
+    "hierarchy_rules": {
+      "h1": "clamp(36px, 3.3vw, 53px) with font-weight 500 and leading 1.53",
+      "h2": "18px - 28px with font-weight 500 and leading 1.9",
+      "body": "12px - 14px with leading 1.9 to 2.0",
+      "eyebrow": "12px, letter-spacing .03em, color #876f49"
+    }
+  },
+  "hero_background_guidelines": {
+    "image_url": "https://images.unsplash.com/photo-1756483560049-e7b2208f99a0?auto=format&fit=crop&w=1800&q=85",
+    "description": "Curated photo of an Indian woman in a traditional sari and luxury gold jewellery",
+    "overlay_strategy": "Use dual-layer gradient scrim overlay (bg-gradient-to-r from-pearl/90 via-pearl/70 to-transparent for desktop, and subtle radial gradient) to guarantee 100% WCAG contrast readability for purple heading, gold eyebrow, and white/purple CTA buttons",
+    "hero_crest": "Keep 'NEW ALANKAR JEWELLERS' crest and 'Symbol Of Purity' English badge prominent on the right/center arch frame",
+    "text_readability": "All text over background must retain dark purple (#3b1254) or rich gold (#876f49) with high contrast background cards/backdrop blurs."
+  },
+  "google_maps_section_guidelines": {
+    "section_id": "map-showroom",
+    "location_link": "https://share.google/ssEBGfxWdCO83eUnt",
+    "embed_url": "https://www.google.com/maps/embed?origin=mfe&pb=!1m3!3m2!1m1!4s212567386023066494!3m1!1smr!5m1!1smr",
+    "placement": "Bottom of the page, directly above Footer or integrated inside showroom location section",
+    "marathi_labels": {
+      "section_eyebrow": "०४ / आमचा पत्ता आणि नकाशा",
+      "title": "आमच्या शोरूमला भेट द्या",
+      "subtitle": "भेट देण्यापूर्वी फोन करून वेळ निश्चित करा.",
+      "get_directions_btn": "येण्याचा मार्ग पाहा",
+      "store_address": "कासार गल्ली, सोमवार पेठ, तासगाव, महाराष्ट्र ४१६३१२",
+      "phone": "+91 9890271037"
+    },
+    "styling": "Bordered luxury card in metallic gold with rounded frame, subtle shadow, interactive full-width map embed with direct opening link"
+  },
+  "component_modifications": {
+    "Hero_jsx": {
+      "path": "/app/frontend/src/components/site/Hero.jsx",
+      "action": "Integrate traditional woman hero background with glass/scrim overlay while keeping existing 'Symbol Of Purity' tag and Marathi text completely readable."
+    },
+    "MapSection_jsx": {
+      "path": "/app/frontend/src/components/site/ShowroomMap.jsx",
+      "action": "Create dedicated ShowroomMap component with Google Maps iframe embed, Marathi directions CTA button linking to https://share.google/ssEBGfxWdCO83eUnt, data-testid attributes."
+    },
+    "Footer_jsx": {
+      "path": "/app/frontend/src/components/site/Footer.jsx",
+      "action": "Place ShowroomMap section right before the Footer section or integrate seamlessly."
+    }
+  },
+  "universal_guidelines_for_main_agent": {
+    "data_testid_requirement": "All interactive elements, inputs, CTA buttons, links, maps, and section headings MUST include explicit kebab-case data-testid attributes.",
+    "language_integrity": "Keep all public facing headings in rich Marathi, retain 'Symbol Of Purity' and 'Symbol of Purity' in English, and private owner login in English.",
+    "no_transparent_dropdowns": "Never use fully transparent backgrounds behind text or dropdown menus.",
+    "hover_states": "All buttons must explicit set hover text colors (e.g., hover:bg-[#4a154b] hover:text-white).",
+    "no_fake_catalogs": "Maintain real database/API logic for catalog items."
+  }
+}
