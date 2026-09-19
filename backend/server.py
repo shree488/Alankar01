@@ -30,7 +30,7 @@ async def lifespan(app):
 
 app = FastAPI(lifespan=lifespan)
 cors_origins = [o.strip().rstrip('/') for o in os.environ.get('CORS_ORIGINS', os.environ.get('FRONTEND_URL', 'http://localhost:3000')).split(',') if o.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=True, allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allow_headers=['Content-Type', 'X-CSRF-Protection'])
+app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_credentials=True, allow_methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE'], allow_headers=['Content-Type', 'X-CSRF-Protection', 'Authorization'])
 
 @app.middleware('http')
 async def security_headers(request, call_next):

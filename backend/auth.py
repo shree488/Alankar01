@@ -45,6 +45,10 @@ async def seed_owner():
 
 async def decode_session(request: Request, kind='access'):
     token = request.cookies.get(f'{kind}_token')
+    if not token and kind == 'access':
+        auth_header = request.headers.get('authorization') or request.headers.get('Authorization') or ''
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
     if not token:
         raise HTTPException(401, 'Please log in.')
     try:
@@ -76,15 +80,23 @@ async def require_customer(request: Request, _=Depends(csrf_guard)):
         raise HTTPException(403, 'Customer access required.')
     return session
 
-def set_tokens(response: Response, session: Session, include_refresh=True):
+def set_tokens(response: Response, session: Session, include_refresh=True, request: Request = None):
+    tokens = {}
+    is_secure = True
+    if request:
+        proto = request.headers.get('x-forwarded-proto', '')
+        is_secure = request.url.scheme == 'https' or proto == 'https' or 'onrender.com' in str(request.base_url)
+    samesite = 'none' if is_secure else 'lax'
     for kind, lifetime in [('access', 900), ('refresh', 604800)]:
         if kind == 'refresh' and not include_refresh:
             continue
         expiry = min(now() + timedelta(seconds=lifetime), session.expires_at)
         sub = session.owner_id if session.owner_id else session.customer_id
         token = jwt.encode({'sub': sub, 'sid': session.id, 'type': kind, 'exp': expiry}, SECRET, algorithm='HS256')
-        response.set_cookie(f'{kind}_token', token, httponly=True, secure=False, samesite='lax', max_age=max(0, int((expiry - now()).total_seconds())), path='/api')
+        tokens[f'{kind}_token'] = token
+        response.set_cookie(f'{kind}_token', token, httponly=True, secure=is_secure, samesite=samesite, max_age=max(0, int((expiry - now()).total_seconds())), path='/api')
     response.headers['Cache-Control'] = 'no-store'
+    return tokens
 
 class LoginInput(BaseModel):
     password: str = Field(min_length=1, max_length=72)
@@ -108,8 +120,8 @@ async def login(payload: LoginInput, request: Request, response: Response):
     await db.login_attempts.delete_many({'identifier': identifier})
     session = Session(owner_id=owner.id, expires_at=now() + timedelta(days=7))
     await db.sessions.insert_one(session.to_mongo())
-    set_tokens(response, session)
-    return {'role': 'owner'}
+    tokens = set_tokens(response, session, request=request)
+    return {'role': 'owner', 'access_token': tokens.get('access_token')}
 
 @router.get('/me')
 async def me(response: Response, session=Depends(require_owner)):
@@ -119,8 +131,8 @@ async def me(response: Response, session=Depends(require_owner)):
 @router.post('/refresh', dependencies=[Depends(csrf_guard)])
 async def refresh(request: Request, response: Response):
     session = await decode_session(request, 'refresh')
-    set_tokens(response, session, include_refresh=False)
-    return {'role': 'owner'}
+    tokens = set_tokens(response, session, include_refresh=False, request=request)
+    return {'role': 'owner', 'access_token': tokens.get('access_token')}
 
 @router.post('/logout', dependencies=[Depends(csrf_guard)])
 async def logout(request: Request, response: Response):
@@ -131,7 +143,7 @@ async def logout(request: Request, response: Response):
         except HTTPException:
             pass
     for name in ('access_token', 'refresh_token'):
-        response.delete_cookie(name, path='/api', secure=False, httponly=True, samesite='lax')
+        response.delete_cookie(name, path='/api', secure=True, httponly=True, samesite='none')
     response.headers['Cache-Control'] = 'no-store'
     return {'locked': True}
 

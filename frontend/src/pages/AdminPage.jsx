@@ -47,13 +47,13 @@ export default function AdminPage() {
     let active = true;
     if (sessionStorage.getItem('naj-owner-locked')) setUser(false);
     else apiRequest('/auth/me').then(() => { if (active) setUser(true); }).catch(error => { if (active) { setUser(false); if (error.status !== 401) setNotice('Could not verify your session. Please try logging in.'); } });
-    const expired = () => { setUser(false); sessionStorage.removeItem('naj-owner-session'); };
+    const expired = () => { setUser(false); sessionStorage.removeItem('naj-owner-session'); sessionStorage.removeItem('naj_owner_token'); };
     const channel = new BroadcastChannel('naj-store'); channel.onmessage = event => { if (event.data === 'locked') { expired(); sessionStorage.setItem('naj-owner-locked', '1'); } };
     window.addEventListener('owner-session-expired', expired);
     return () => { active = false; meta.remove(); channel.close(); window.removeEventListener('owner-session-expired', expired); document.documentElement.lang = 'mr'; };
   }, []);
   const logout = async () => {
-    setUser(false); setNotice(''); setLoggingOut(true); sessionStorage.removeItem('naj-owner-session'); sessionStorage.setItem('naj-owner-locked', '1'); publishChange('locked');
+    setUser(false); setNotice(''); setLoggingOut(true); sessionStorage.removeItem('naj-owner-session'); sessionStorage.removeItem('naj_owner_token'); sessionStorage.setItem('naj-owner-locked', '1'); publishChange('locked');
     try { await apiRequest('/auth/logout', { method: 'POST' }); }
     catch { setNotice('Portal locked on this device. Network unavailable; reconnect to sign out on the server.'); toast.error('Could not complete server logout. Reconnect and retry.'); }
     finally { setLoggingOut(false); }
