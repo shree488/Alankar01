@@ -106,13 +106,7 @@ async def complete_upload(upload_id: str, session=Depends(require_owner)):
     data = b''.join(upload.chunks)
     ext, content_type = await run_in_threadpool(validate_image, data)
     path = f"{os.environ.get('STORAGE_APP_NAME', 'new-alankar-jewellers')}/uploads/{session.owner_id}/{uuid.uuid4()}.{ext}"
-    try:
-        result = await run_in_threadpool(storage_request, 'PUT', path, data, content_type)
-        result = result.json()
-    except requests.RequestException:
-        logging.exception('Jewellery photo storage failed')
-        raise HTTPException(502, 'Photo storage is unavailable. Retry or use a direct image URL.')
-    media = Media(storage_path=result['path'], original_filename=upload.filename, content_type=content_type, size=upload.size)
+    media = Media(storage_path=path, original_filename=upload.filename, content_type=content_type, size=upload.size, data=data)
     await db.media.insert_one(media.to_mongo())
     await db.uploads.delete_one({'_id': ObjectId(upload.id)})
     return {'image_url': f'/api/media/{media.id}'}
@@ -123,8 +117,11 @@ async def read_media(media_id: str):
     if not record:
         raise HTTPException(404, 'Image not found.')
     media = Media.from_mongo(record)
-    try:
-        result = await run_in_threadpool(storage_request, 'GET', media.storage_path)
-    except requests.RequestException:
-        raise HTTPException(502, 'Image temporarily unavailable.')
-    return Response(result.content, media_type=media.content_type, headers={'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'})
+    content = record.get('data')
+    if content is None:
+        try:
+            result = await run_in_threadpool(storage_request, 'GET', media.storage_path)
+            content = result.content
+        except Exception:
+            raise HTTPException(404, 'Image temporarily unavailable.')
+    return Response(content, media_type=media.content_type, headers={'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff'})

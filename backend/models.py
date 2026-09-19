@@ -128,6 +128,7 @@ class Media(BaseDocument):
     original_filename: str
     content_type: str
     size: int
+    data: bytes | None = None
     is_deleted: bool = False
     created_at: datetime = Field(default_factory=now)
 
