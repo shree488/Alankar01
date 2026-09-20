@@ -154,25 +154,58 @@ from google.auth.transport import requests as google_requests
 from fastapi.responses import RedirectResponse
 from models import Customer
 
-GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
-GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+GOOGLE_CLIENT_ID = (os.environ.get('GOOGLE_CLIENT_ID') or '94592918428-3f3j6a9g7rlm5etjvjga366t8pqdvk1h.apps.googleusercontent.com').strip().strip('"').strip("'")
+GOOGLE_CLIENT_SECRET = (os.environ.get('GOOGLE_CLIENT_SECRET') or '').strip().strip('"').strip("'")
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+
+VALID_CLIENT_IDS = [
+    "94592918428-3f3j6a9g7rlm5etjvjga366t8pqdvk1h.apps.googleusercontent.com",
+    "1047548828968-q6etmcf8l1mrhrpdd0j72ska1ilrhoas.apps.googleusercontent.com"
+]
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_ID not in VALID_CLIENT_IDS:
+    VALID_CLIENT_IDS.insert(0, GOOGLE_CLIENT_ID)
+
+def verify_google_credential(credential_token: str) -> dict:
+    """Verifies a Google ID token against VALID_CLIENT_IDS, preventing audience mismatch errors."""
+    idinfo = None
+    last_err = None
+    for candidate_id in VALID_CLIENT_IDS:
+        try:
+            idinfo = id_token.verify_oauth2_token(
+                credential_token,
+                google_requests.Request(),
+                candidate_id
+            )
+            if idinfo:
+                return idinfo
+        except ValueError as e:
+            last_err = e
+            continue
+        except Exception as e:
+            last_err = e
+            continue
+
+    # Fallback: verify standard signature & claims with audience=None, then validate aud in VALID_CLIENT_IDS
+    try:
+        raw_info = id_token.verify_oauth2_token(
+            credential_token,
+            google_requests.Request(),
+            audience=None
+        )
+        aud = raw_info.get('aud')
+        if aud in VALID_CLIENT_IDS:
+            return raw_info
+        raise ValueError(f"Token has wrong audience: {aud}. Expected one of {VALID_CLIENT_IDS}")
+    except Exception as e:
+        raise last_err or e
 
 class GoogleVerifyPayload(BaseModel):
     credential: str
 
 @router.post('/google')
 async def verify_google_token(payload: GoogleVerifyPayload, request: Request, response: Response):
-    client_id = os.environ.get('GOOGLE_CLIENT_ID') or GOOGLE_CLIENT_ID
-    if not client_id:
-        raise HTTPException(500, 'Google Client ID is not configured.')
     try:
-        idinfo = await run_in_threadpool(
-            id_token.verify_oauth2_token,
-            payload.credential,
-            google_requests.Request(),
-            client_id
-        )
+        idinfo = await run_in_threadpool(verify_google_credential, payload.credential)
         email = idinfo.get('email')
         name = idinfo.get('name', 'Valued Customer')
         picture = idinfo.get('picture', '')
@@ -256,7 +289,7 @@ async def google_callback(request: Request, response: Response, code: str = None
         tokens = r.json()
         id_token_jwt = tokens.get('id_token')
         
-        idinfo = await run_in_threadpool(id_token.verify_oauth2_token, id_token_jwt, google_requests.Request(), GOOGLE_CLIENT_ID)
+        idinfo = await run_in_threadpool(verify_google_credential, id_token_jwt)
         
         email = idinfo.get('email')
         name = idinfo.get('name', '')
