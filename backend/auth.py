@@ -158,6 +158,60 @@ GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
+class GoogleVerifyPayload(BaseModel):
+    credential: str
+
+@router.post('/google')
+async def verify_google_token(payload: GoogleVerifyPayload, request: Request, response: Response):
+    client_id = os.environ.get('GOOGLE_CLIENT_ID') or GOOGLE_CLIENT_ID
+    if not client_id:
+        raise HTTPException(500, 'Google Client ID is not configured.')
+    try:
+        idinfo = await run_in_threadpool(
+            id_token.verify_oauth2_token,
+            payload.credential,
+            google_requests.Request(),
+            client_id
+        )
+        email = idinfo.get('email')
+        name = idinfo.get('name', 'Valued Customer')
+        picture = idinfo.get('picture', '')
+        google_id = idinfo.get('sub')
+        
+        if not email:
+            raise HTTPException(400, 'No email found in Google credential.')
+            
+        raw_user = await db.users.find_one({'email': email})
+        if raw_user:
+            user = Customer.from_mongo(raw_user)
+            await db.users.update_one(
+                {'_id': ObjectId(user.id)},
+                {'$set': {'name': name, 'avatar': picture, 'google_id': google_id}}
+            )
+        else:
+            user = Customer(email=email, name=name, avatar=picture, google_id=google_id)
+            await db.users.insert_one(user.to_mongo())
+            
+        session = Session(customer_id=user.id, expires_at=now() + timedelta(days=30))
+        await db.sessions.insert_one(session.to_mongo())
+        tokens = set_tokens(response, session, request=request)
+        
+        return {
+            'success': True,
+            'user': {
+                'id': str(user.id),
+                'name': name,
+                'email': email,
+                'picture': picture
+            },
+            'access_token': tokens.get('access_token')
+        }
+    except ValueError as e:
+        raise HTTPException(401, f'Invalid Google credential: {e}')
+    except Exception as e:
+        print(f'Google Verify Error: {e}')
+        raise HTTPException(500, 'Failed to verify Google login.')
+
 @router.get('/google/login')
 async def google_login(request: Request):
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:

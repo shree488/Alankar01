@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Menu, X, ArrowUpRight, Search, Camera, Gem, Store, Heart, UserRound, X as CloseIcon } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Search, Camera, Gem, Store, Heart, UserRound, Loader2, X as CloseIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { scrollToId } from '@/hooks/useLenis';
 import { CATEGORIES, API } from '@/lib/data';
@@ -153,7 +153,11 @@ const PurityModal = ({ onClose }) => {
   );
 };
 
-const AuthModal = ({ onClose }) => {
+const AuthModal = ({ onClose, onLoginSuccess }) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const googleBtnRef = useRef(null);
+
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     const handleEsc = (e) => e.key === 'Escape' && onClose();
@@ -161,9 +165,66 @@ const AuthModal = ({ onClose }) => {
     return () => { document.body.style.overflow = 'auto'; window.removeEventListener('keydown', handleEsc); };
   }, [onClose]);
 
-  const handleGoogle = () => {
-    window.location.href = `${API}/auth/google/login`;
-  };
+  useEffect(() => {
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID || "94592918428-3f3j6a9g7rlm5etjvjga366t8pqdvk1h.apps.googleusercontent.com";
+
+    const handleCredentialResponse = async (response) => {
+      if (!response || !response.credential) return;
+      setLoading(true);
+      setError('');
+      try {
+        const res = await apiRequest('/auth/google', {
+          method: 'POST',
+          body: { credential: response.credential }
+        });
+        if (res?.user) {
+          localStorage.setItem('alankar_customer_user', JSON.stringify(res.user));
+          if (res.access_token) {
+            localStorage.setItem('naj_customer_token', res.access_token);
+          }
+          if (onLoginSuccess) onLoginSuccess(res.user);
+          onClose();
+        } else {
+          throw new Error('User profile missing in response');
+        }
+      } catch (err) {
+        console.error('Google Auth verification error:', err);
+        setError(err.message || 'Google login could not be verified. Please try again.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    let intervalId;
+    const renderGoogleBtn = () => {
+      if (window.google?.accounts?.id && googleBtnRef.current) {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleCredentialResponse,
+        });
+        googleBtnRef.current.innerHTML = '';
+        window.google.accounts.id.renderButton(googleBtnRef.current, {
+          theme: 'outline',
+          size: 'large',
+          shape: 'pill',
+          width: 320,
+          text: 'continue_with',
+        });
+        return true;
+      }
+      return false;
+    };
+
+    if (!renderGoogleBtn()) {
+      intervalId = setInterval(() => {
+        if (renderGoogleBtn()) clearInterval(intervalId);
+      }, 250);
+    }
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [onLoginSuccess, onClose]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
@@ -181,14 +242,26 @@ const AuthModal = ({ onClose }) => {
 
         <h3 className="text-xl font-medium text-center text-[#3B1254] mb-8">लॉगिन करा किंवा साइन अप करा</h3>
 
-        <button onClick={handleGoogle} className="w-full flex items-center justify-center gap-3 bg-white border border-stone-200 text-stone-700 font-medium py-3.5 px-4 rounded-xl hover:bg-stone-50 hover:shadow-sm transition-all">
-          <svg viewBox="0 0 24 24" width="20" height="20" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          Continue with Google
-        </button>
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="w-full flex flex-col items-center justify-center min-h-[46px]">
+          {loading ? (
+            <div className="flex items-center gap-2 text-stone-500 py-3 text-sm">
+              <Loader2 className="animate-spin text-[#D4AF37]" size={20} />
+              <span>सत्यापित करत आहे...</span>
+            </div>
+          ) : (
+            <div ref={googleBtnRef} className="w-full flex justify-center" />
+          )}
+        </div>
 
         <div className="mt-8 text-center border-t border-stone-100 pt-5">
           <Link to="/admin" onClick={onClose} className="text-[11px] uppercase tracking-wider text-stone-400 hover:text-[#D4AF37] font-medium transition-colors">
-            Admin / Owner Portal
+            मालक लॉगिन (Owner Portal)
           </Link>
         </div>
       </div>
@@ -223,22 +296,22 @@ export const Navbar = ({ onBook }) => {
         try {
           const userObj = await apiRequest('/auth/me/customer');
           setUser(userObj);
-          localStorage.setItem('naj_customer_session', JSON.stringify(userObj));
+          localStorage.setItem('alankar_customer_user', JSON.stringify(userObj));
         } catch (e) {
           console.error('Failed to fetch profile after google auth', e);
         }
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (urlParams.get('error')) {
-        const errorMsg = urlParams.get('error');
-        if (errorMsg === 'google_not_configured') {
-           alert('Google OAuth requires backend configuration (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET).');
-        } else {
-           alert('Google login could not be completed. Please try again.');
-        }
         window.history.replaceState({}, document.title, window.location.pathname);
       } else {
-        const storedUser = localStorage.getItem('naj_customer_session');
-        if (storedUser) setUser(JSON.parse(storedUser));
+        const storedCustomer = localStorage.getItem('alankar_customer_user') || localStorage.getItem('naj_customer_session');
+        if (storedCustomer) {
+          try {
+            setUser(JSON.parse(storedCustomer));
+          } catch (e) {
+            console.error('Failed to parse customer user session', e);
+          }
+        }
       }
     };
     
@@ -247,14 +320,12 @@ export const Navbar = ({ onBook }) => {
     return () => window.removeEventListener('naj-wishlist-change', updateWishlistCount);
   }, [updateWishlistCount]);
 
-  const handleLogout = async () => {
-    try {
-      await apiRequest('/auth/logout', { method: 'POST' });
-    } catch(e) {
-      // Ignore errors on logout
-    }
-    setUser(null);
+  const handleLogout = () => {
+    // Strictly isolate customer logout: only remove customer storage
+    localStorage.removeItem('alankar_customer_user');
     localStorage.removeItem('naj_customer_session');
+    localStorage.removeItem('naj_customer_token');
+    setUser(null);
     setUserMenuOpen(false);
   };
 
@@ -296,28 +367,75 @@ export const Navbar = ({ onBook }) => {
               </button>
 
               <div className="relative">
-                <button onClick={() => user ? setUserMenuOpen(!userMenuOpen) : setAuthOpen(true)} className="text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Account" title="Account">
-                  <UserRound size={22} strokeWidth={1.5} />
+                <button
+                  onClick={() => user ? setUserMenuOpen(!userMenuOpen) : setAuthOpen(true)}
+                  className="flex items-center justify-center text-[#3B1254] hover:text-[#D4AF37] transition-colors"
+                  aria-label="Account"
+                  title={user ? (user.name || "Customer Account") : "Account"}
+                >
+                  {user && (user.picture || user.avatar) ? (
+                    <img
+                      src={user.picture || user.avatar}
+                      alt={user.name || "Customer"}
+                      className="w-7 h-7 rounded-full object-cover border border-[#D4AF37] shadow-sm"
+                    />
+                  ) : (
+                    <UserRound size={22} strokeWidth={1.5} />
+                  )}
                 </button>
                 
                 {user && userMenuOpen && (
-                  <div className="absolute right-0 mt-4 w-56 bg-white border border-stone-200 shadow-xl rounded-xl py-2 z-50">
-                    <div className="px-4 py-3 border-b border-stone-100 mb-1">
-                      <p className="text-sm font-semibold text-[#3B1254] truncate">{user.name}</p>
-                      <p className="text-xs text-stone-500 mt-0.5 truncate">+91 {user.phone}</p>
-                    </div>
-                    <button onClick={() => { setUserMenuOpen(false); onBook(); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#D4AF37]">
-                      My Orders/Appointments
-                    </button>
-                    <button onClick={() => { setUserMenuOpen(false); go('#collections'); }} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#D4AF37]">
-                      Saved Wishlist
-                    </button>
-                    <div className="border-t border-stone-100 mt-1 pt-1">
-                      <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-red-600">
-                        Sign Out
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 mt-4 w-60 bg-white border border-stone-200 shadow-xl rounded-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                      <div className="px-4 py-3 border-b border-stone-100 mb-1 flex items-center gap-3">
+                        {user.picture || user.avatar ? (
+                          <img
+                            src={user.picture || user.avatar}
+                            alt={user.name || "Customer"}
+                            className="w-9 h-9 rounded-full object-cover border border-[#D4AF37] flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-9 h-9 rounded-full bg-purple-50 text-[#3B1254] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                            {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-[#3B1254] truncate">{user.name || 'Valued Customer'}</p>
+                          <p className="text-xs text-stone-500 truncate">{user.email || (user.phone ? `+91 ${user.phone}` : '')}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setUserMenuOpen(false); onBook(); }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#D4AF37] transition-colors"
+                      >
+                        माझ्या ऑर्डर्स / भेटी
                       </button>
+                      <button
+                        onClick={() => { setUserMenuOpen(false); go('#collections'); }}
+                        className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-stone-50 hover:text-[#D4AF37] transition-colors"
+                      >
+                        जतन केलेले दागिने
+                      </button>
+                      <div className="border-t border-stone-100 mt-1 pt-1">
+                        <button
+                          onClick={handleLogout}
+                          className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                        >
+                          बाहेर पडा (Sign Out)
+                        </button>
+                      </div>
+                      <div className="border-t border-stone-100 mt-1 pt-1">
+                        <Link
+                          to="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="w-full block px-4 py-2 text-[11px] uppercase tracking-wider text-stone-400 hover:text-[#D4AF37] font-medium transition-colors"
+                        >
+                          मालक लॉगिन (Owner Portal)
+                        </Link>
+                      </div>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
 
@@ -352,7 +470,7 @@ export const Navbar = ({ onBook }) => {
         )}
       </header>
 
-      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} onLoginSuccess={(u) => setUser(u)} />}
       {purityOpen && <PurityModal onClose={() => setPurityOpen(false)} />}
     </>
   );
