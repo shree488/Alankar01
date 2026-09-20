@@ -338,10 +338,14 @@ export const Navbar = ({ onBook }) => {
           <div className="flex items-center justify-between w-full min-h-[80px] gap-4 md:gap-6">
             <button data-testid="nav-brand" className="brand flex-shrink-0" onClick={() => go('#home')}>
               <img src="/crest.png" alt="New Alankar Jewellers crest" />
-              <span className="hidden sm:block">
-                <strong>NEW ALANKAR JEWELLERS</strong>
-                <small className="navbar-tagline">Symbol of Purity</small>
-              </span>
+              <div className="flex flex-col flex-shrink-0 justify-center">
+                <span className="text-sm sm:text-lg md:text-xl font-serif font-bold text-[#3B1254] tracking-wide leading-tight uppercase whitespace-nowrap">
+                  NEW ALANKAR JEWELLERS
+                </span>
+                <span className="text-[10px] sm:text-xs text-[#D4AF37] font-medium tracking-widest leading-none">
+                  Symbol of Purity
+                </span>
+              </div>
             </button>
             
             <div className="flex-1 hidden md:block">
