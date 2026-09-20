@@ -331,18 +331,18 @@ export const Navbar = ({ onBook }) => {
 
   return (
     <>
-      <header data-testid="glassmorphic-navbar" className="site-header">
-        <div className="section-wrap" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
+      <header data-testid="glassmorphic-navbar" className="site-header w-full max-w-full overflow-hidden px-3 py-2 md:px-0 md:py-0">
+        <div className="section-wrap !w-full md:!w-[min(1280px,calc(100%-96px))] !m-0 md:!mx-auto" style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
           
           {/* Top Row: Brand, Search, Utilities */}
-          <div className="flex items-center justify-between w-full min-h-[80px] gap-4 md:gap-6">
+          <div className="flex items-center justify-between w-full min-h-[52px] md:min-h-[80px] gap-2 md:gap-6">
             <button data-testid="nav-brand" className="brand flex-shrink-0" onClick={() => go('#home')}>
-              <img src="/crest.png" alt="New Alankar Jewellers crest" />
+              <img src="/crest.png" alt="New Alankar Jewellers crest" className="w-8 h-8 sm:w-10 sm:h-10 object-contain flex-shrink-0" />
               <div className="flex flex-col flex-shrink-0 justify-center">
-                <span className="text-sm sm:text-lg md:text-xl font-serif font-bold text-[#3B1254] tracking-wide leading-tight uppercase whitespace-nowrap">
+                <span className="text-xs sm:text-sm font-serif font-bold text-[#3B1254] whitespace-nowrap">
                   NEW ALANKAR JEWELLERS
                 </span>
-                <span className="text-[10px] sm:text-xs text-[#D4AF37] font-medium tracking-widest leading-none">
+                <span className="text-[9px] text-[#D4AF37] tracking-wider">
                   Symbol of Purity
                 </span>
               </div>
@@ -352,16 +352,16 @@ export const Navbar = ({ onBook }) => {
               <SearchBar />
             </div>
 
-            <div className="flex items-center gap-4 md:gap-5 flex-shrink-0">
-              <button onClick={() => setPurityOpen(true)} className="text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Hallmark and Purity" title="Hallmark & Purity">
+            <div className="flex items-center gap-2 sm:gap-4 md:gap-5 flex-shrink-0">
+              <button onClick={() => setPurityOpen(true)} className="hidden md:flex items-center text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Hallmark and Purity" title="Hallmark & Purity">
                 <Gem size={22} strokeWidth={1.5} />
               </button>
               
-              <button onClick={() => go('#contact')} className="text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Store Locator" title="Store Locator">
+              <button onClick={() => go('#contact')} className="hidden md:flex items-center text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Store Locator" title="Store Locator">
                 <Store size={22} strokeWidth={1.5} />
               </button>
               
-              <button onClick={() => go('#collections')} className="relative text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Wishlist" title="Wishlist">
+              <button onClick={() => go('#collections')} className="relative hidden md:flex items-center text-[#3B1254] hover:text-[#D4AF37] transition-colors" aria-label="Wishlist" title="Wishlist">
                 <Heart size={22} strokeWidth={1.5} />
                 {wishlistCount > 0 && (
                   <span className="absolute -top-2 -right-2 bg-[#3B1254] text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
@@ -450,7 +450,7 @@ export const Navbar = ({ onBook }) => {
           </div>
 
           {/* Search Bar on Mobile */}
-          <div className="w-full block md:hidden pb-4">
+          <div className="w-full block md:hidden px-3 pt-1 pb-2">
             <SearchBar />
           </div>
 
@@ -463,11 +463,63 @@ export const Navbar = ({ onBook }) => {
           </nav>
         </div>
 
-        {/* Mobile Nav Links */}
+        {/* Mobile Nav Links & Extra Actions */}
         {open && (
-          <nav className="mobile-nav flex flex-col p-4 bg-white border-t border-stone-100">
-            {LINKS.map((link) => <button key={link.id} className="py-4 text-left border-b border-stone-100 text-[#3B1254] font-medium" onClick={() => go(link.hash)}>{link.label}</button>)}
-            <button className="lux-button mt-5" onClick={() => { setOpen(false); onBook(); }}>
+          <nav className="mobile-nav flex flex-col p-4 bg-white border-t border-stone-100 animate-in slide-in-from-top-2 duration-200">
+            <div className="flex flex-col">
+              {LINKS.map((link) => (
+                <button
+                  key={link.id}
+                  className="py-3 text-left border-b border-stone-100 text-[#3B1254] font-medium flex items-center justify-between hover:text-[#D4AF37] transition-colors"
+                  onClick={() => go(link.hash)}
+                >
+                  <span>{link.label}</span>
+                  <ArrowUpRight size={16} className="text-stone-400" />
+                </button>
+              ))}
+            </div>
+
+            {/* Extra Actions on Mobile: Hallmark, Store Locator, Wishlist */}
+            <div className="py-2 border-b border-stone-100 flex flex-col gap-1">
+              <button
+                onClick={() => { setOpen(false); setPurityOpen(true); }}
+                className="py-2.5 px-1 text-left text-stone-700 hover:text-[#3B1254] flex items-center gap-3 font-medium text-sm transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-purple-50 text-[#3B1254] flex items-center justify-center flex-shrink-0">
+                  <Gem size={18} strokeWidth={1.5} />
+                </div>
+                <span>हॉलमार्क आणि शुद्धता (Hallmark & Purity)</span>
+              </button>
+
+              <button
+                onClick={() => { setOpen(false); go('#contact'); }}
+                className="py-2.5 px-1 text-left text-stone-700 hover:text-[#3B1254] flex items-center gap-3 font-medium text-sm transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-purple-50 text-[#3B1254] flex items-center justify-center flex-shrink-0">
+                  <Store size={18} strokeWidth={1.5} />
+                </div>
+                <span>दुकान पत्ता आणि वेळ (Store Locator)</span>
+              </button>
+
+              <button
+                onClick={() => { setOpen(false); go('#collections'); }}
+                className="py-2.5 px-1 text-left text-stone-700 hover:text-[#3B1254] flex items-center justify-between font-medium text-sm transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-50 text-[#3B1254] flex items-center justify-center flex-shrink-0">
+                    <Heart size={18} strokeWidth={1.5} />
+                  </div>
+                  <span>जतन केलेले दागिने (Wishlist)</span>
+                </div>
+                {wishlistCount > 0 && (
+                  <span className="bg-[#3B1254] text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                    {wishlistCount}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            <button className="lux-button mt-4" onClick={() => { setOpen(false); onBook(); }}>
               बुक अपॉइंटमेंट <ArrowUpRight size={16} className="ml-2" />
             </button>
           </nav>
