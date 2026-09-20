@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Menu, X, ArrowUpRight, Search, Camera, Gem, Store, Heart, UserRound, Loader2, X as CloseIcon } from 'lucide-react';
+import { Menu, X, ArrowUpRight, Search, Camera, Gem, Store, Heart, UserRound, Loader2, LogOut, X as CloseIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { scrollToId } from '@/hooks/useLenis';
 import { CATEGORIES, API } from '@/lib/data';
@@ -370,10 +370,10 @@ export const Navbar = ({ onBook }) => {
                 )}
               </button>
 
-              <div className="relative">
+              <div className="relative flex items-center gap-1.5">
                 <button
                   onClick={() => user ? setUserMenuOpen(!userMenuOpen) : setAuthOpen(true)}
-                  className="flex items-center justify-center text-[#3B1254] hover:text-[#D4AF37] transition-colors"
+                  className="flex items-center justify-center text-[#3B1254] hover:text-[#D4AF37] transition-colors p-1"
                   aria-label="Account"
                   title={user ? (user.name || "Customer Account") : "Account"}
                 >
@@ -387,11 +387,23 @@ export const Navbar = ({ onBook }) => {
                     <UserRound size={22} strokeWidth={1.5} />
                   )}
                 </button>
+
+                {user && (
+                  <button
+                    onClick={handleLogout}
+                    className="hidden md:inline-flex items-center gap-1 text-xs text-stone-600 hover:text-red-600 transition-colors px-2.5 py-1 rounded-full border border-stone-200 hover:border-red-200 hover:bg-red-50"
+                    title="बाहेर पडा (Logout)"
+                    aria-label="Logout"
+                  >
+                    <LogOut size={13} />
+                    <span>बाहेर पडा (Logout)</span>
+                  </button>
+                )}
                 
                 {user && userMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                    <div className="absolute right-0 mt-4 w-60 bg-white border border-stone-200 shadow-xl rounded-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="absolute right-0 top-full mt-2 w-64 bg-white border border-stone-200 shadow-xl rounded-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-200">
                       <div className="px-4 py-3 border-b border-stone-100 mb-1 flex items-center gap-3">
                         {user.picture || user.avatar ? (
                           <img
@@ -424,9 +436,10 @@ export const Navbar = ({ onBook }) => {
                       <div className="border-t border-stone-100 mt-1 pt-1">
                         <button
                           onClick={handleLogout}
-                          className="w-full text-left px-4 py-2.5 text-sm text-stone-600 hover:bg-red-50 hover:text-red-600 transition-colors"
+                          className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center gap-2"
                         >
-                          बाहेर पडा (Sign Out)
+                          <LogOut size={15} />
+                          <span>बाहेर पडा (Sign Out / Logout)</span>
                         </button>
                       </div>
                       <div className="border-t border-stone-100 mt-1 pt-1">
@@ -466,6 +479,45 @@ export const Navbar = ({ onBook }) => {
         {/* Mobile Nav Links & Extra Actions */}
         {open && (
           <nav className="mobile-nav flex flex-col p-4 bg-white border-t border-stone-100 animate-in slide-in-from-top-2 duration-200">
+            {/* Customer Status & Logout on Mobile */}
+            {user ? (
+              <div className="p-3 mb-3 bg-stone-50 rounded-2xl border border-stone-200 flex items-center justify-between">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {user.picture || user.avatar ? (
+                    <img
+                      src={user.picture || user.avatar}
+                      alt={user.name || "Customer"}
+                      className="w-9 h-9 rounded-full object-cover border border-[#D4AF37] flex-shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-purple-100 text-[#3B1254] flex items-center justify-center font-bold text-sm flex-shrink-0">
+                      {user.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-[#3B1254] truncate">{user.name || 'Valued Customer'}</p>
+                    <p className="text-[11px] text-stone-500 truncate">{user.email || ''}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setOpen(false); handleLogout(); }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-semibold hover:bg-red-100 border border-red-200 transition-colors flex-shrink-0"
+                  aria-label="Logout"
+                >
+                  <LogOut size={13} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => { setOpen(false); setAuthOpen(true); }}
+                className="w-full mb-3 py-2.5 px-4 rounded-xl border border-[#D4AF37] bg-[#fcfaf7] text-[#3B1254] font-medium text-xs flex items-center justify-center gap-2 hover:bg-purple-50 transition-colors"
+              >
+                <UserRound size={16} className="text-[#D4AF37]" />
+                <span>साइन इन करा (Customer Sign In)</span>
+              </button>
+            )}
+
             <div className="flex flex-col">
               {LINKS.map((link) => (
                 <button
